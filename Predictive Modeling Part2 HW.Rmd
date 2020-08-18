@@ -1,0 +1,856 @@
+---
+title: "Predictive Modeling Part 2 HW"
+author: "Martina Galvan, Zeba Pathan, Deepti Rao, Tairan Deng"
+date: "8/18/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Visual story telling part 1: green buildings
+Overall speaking we think developer`s argument is too simplified on the cost-benefit model. 
+There`re other factors like, renovation rate, leasing rate, building class that also affect
+cost of operation of the building, we did the following calculation and plots analysis.
+
+### Renovation Rate Comparision
+By adding green features to the building, there`s a one time cost, but there could be future increased maintenance cost, indicated by times of renovation in the long run.
+
+We process data by divide total amout of renovation by total building ages of green/nongreen buildings. Then what we got is the renovation rate expection through building life. Accourding to our calculation, the chance per year that green building need renovation is 0.89%, that of non-green building got change of 0.80%. Therefore green buildings are 11.8% more likely to need renovation work every year.
+
+Since renovation cost is hard to predict, we`re not sure if higher rent income can offset the further upcoming renovation expense. But in terms of maintenance, this is a conculsion against developer`s model.
+
+```{r Renovation Rate}
+library(plyr)
+green<-read.csv('C:/Users/DENG/Desktop/UTA Doc/Summer/predictive modeling/PART2 EXERCISE/STA380/data/greenbuildings.csv')
+
+#compare renovation rate of Green/Nongreen
+reno_bygreen<-aggregate(x = green$renovated,by = list(green$green_rating),FUN = sum)   
+age_bygreen<-aggregate(x = green$age,by = list(green$green_rating),FUN = sum)
+print(reno_bygreen)
+print(age_bygreen)
+g_RenoRate<-reno_bygreen[2,2]/age_bygreen[2,2]
+notg_RenoRate<-reno_bygreen[1,2]/age_bygreen[1,2]
+extra_rate<-(g_RenoRate-notg_RenoRate)/notg_RenoRate
+#combine renovation rates and plot
+Fix_rate<-c(g_RenoRate,notg_RenoRate)
+barplot(Fix_rate,main="Renovation Rate Comparision",
+        xlab="Green & NonGreen", ylab="Renovate rate per year")
+
+```
+```{r Renovation Rate Plot, echo=FALSE}
+barplot(Fix_rate,main="Renovation Rate Comparision",
+        xlab="Green & NonGreen", ylab="Renovate rate per year")
+```
+### Leasing Rate Comparision
+Another factor affecting realized income of the building is leasing rate. We first suspect that green buildings may have lower leasing rate because of their higher rents, thus offsets the gain from extra rent rate. We did the average leasing rate comparision between green and non green buildings and found some interest results.
+
+The average leasing rate for non-green building is 81.97206, the average leasing rate of green building is 89.28190, which is over 10% higher than non-green building. This result indicates that green buildin owners were able to rent out higher capacity of their building at a higher rental expense(per square feet). This observation clearly supported developer`s argument on investing in green buildings.
+```{r Leasing Rate}
+library(plyr)
+Leasing_rate_df<-aggregate(green[, 6], list(green$green_rating), mean)
+Leasing_rate<-c(Leasing_rate_df[2,2],Leasing_rate_df[1,2])
+Leasing_rate
+```
+Plot result is shown below.
+```{r Leasing Rate Plot1, echo=FALSE}
+barplot(Leasing_rate,main="Leasing rate",
+        xlab="Green & NonGreen", ylab="Average Leasing Rate")
+```
+
+### Building class Comparision
+In this part we`re analyzing relationship between green rating and classes of buildings.
+We are comparing scale of class A buildings and class B buildings amoung green/non green buildings. Since building quality is also a factor of evaluation the market trend.
+As we can see, 79.7% of green buildings are Class A, which means average quality of green buildings are rather good, compared to 36% of non-green buildings, need less to say, non-green buildings have a much higher percentage of class B buildings.  
+It`s hard to draw a conclusion from this observation, since green building is a rather new concept, older building tends to have more worn-out conditions. Also we do not know if building green rating is a factor that determines the building`s class. If that`s the case, we can not assume that building class rating necessarily represent luxuriness of the building.
+```{r Building class scale}
+class_average<-aggregate(green[, 10:11], list(green$green_rating), mean)
+class_average
+class_average_rateA<-c(class_average[2,2],class_average[1,2])
+class_average_rateA
+class_average_rateB<-c(class_average[2,3],class_average[1,3])
+class_average_rateB
+
+```
+Please see following plots
+```{r Leasing Rate Plot2, echo=FALSE}
+barplot(class_average_rateA,main="ClassA comparision",
+        xlab="Green & NonGreen", ylab="Percentage of ClassA")
+barplot(class_average_rateB,main="ClassB comparision",
+        xlab="Green & NonGreen", ylab="Percentage of ClassB")
+```
+
+## Visual story telling part 2: flights at ABIA
+This dataset includes a huge variety of data and we have plenty of room to play with it. We decided to focus on delay time and weather as a delay reason. After plotting, we`re also doing a regression on arrival delay and departure delay time.
+
+### Plot delay time 
+In this question we`re trying to visualization of frequency of flight cancellation due to weather.
+Based on weather data when Austin have extreme weather in 2008, we`re trying to find connection in between.
+
+From the plot we can see delays are more severe from mid March to May and in December in 2008. Refer to extreme weather record.
+Date        Loss in Million
+03-31-2008	120			
+04-10-2008	25			
+05-14-2008	50			
+08-18-2008	25			
+12-12-2008	85
+
+Reference:SIGNIFICANT WEATHER, 2000S
+https://texasalmanac.com/topics/environment/significant-weather-2000s
+
+By comparing the timeline of extreme weather dataframe and our plot results, we have following conculsion.
+From the plot result of arrival and depature delay, we can easily tell that delay time is highly associated with extreme weather in Austin area in 2008, including storm, snow storm and hail.
+```{r ABIA}
+library(ggplot2)
+library(dplyr)
+library(data.table)
+
+ABIA<-read.csv('C:/Users/DENG/Desktop/UTA Doc/Summer/predictive modeling/PART2 EXERCISE/STA380/data/ABIA.csv')
+ABIA$date<-as.Date(with(ABIA,paste(Year,Month,DayofMonth,sep='-')),"%Y-%m-%d")
+delay<-aggregate(ABIA[, 15:16], list(ABIA$date), mean,na.rm=T)
+
+diaster<-data.frame('Date'=c('03-31-2008','04-10-2008','05-14-2008','08-18-2008','12-12-2008'),'Loss'=c('120','25','50','25','85'))
+diaster
+
+
+```
+
+```{r Delay time plot, echo=FALSE}
+plot(delay$Group.1, delay$ArrDelay, type = "b", frame = FALSE, pch = 19, 
+     col = "red", xlab = "Date", ylab = "DelayTime")
+
+lines(delay$Group.1, delay$DepDelay, pch = 18, col = "blue", type = "b", lty = 2)
+
+lines(diaster$Date, diaster$Loss, pch = 18, col = "black", type = "b", lty = 2)
+legend("topleft", legend=c("ArrDelay", "DepDelay"),
+       col=c("red", "blue"), lty = 1:2, cex=0.8)
+```
+
+### Delay time on regression model
+After we found the correlation between weather and delay time, we want to examine if weather factor effect arrival time and departure time in similar way. Since arrival time and delay time are under same weather circumstances, over this topic we only build regression model between them.
+```{r Delay time regression model}
+Arr_Delay<-lm(delay$DepDelay~delay$ArrDelay,data=delay)
+summary(Arr_Delay)
+```
+From the above regression results we can see that arrival delay and departure delay times are highly associated, which make sense. If a flight arrive late at Austin airport, it`s likely for that flight to also take off late. The coefficient of arrival time over departure time shows rather low Std. error, which means all flights are affected by late arrival in a very similar way.
+Additionally, the intercept of this model is very low, only 3.44 min compared to common delay time over hours. This intercept is not significant compared to the total y value, departure delay time. This means that departure delay time is mainly effected by arrival delay time. The coefficient of 0.81 indicates that for every 10 more min of arrival delay time, the departure delay time only increase by 8 min, indicating that Austin airport actually operates more efficient on improving delays under extreme weather.
+
+
+
+## Market_Segmentation
+
+```{r Market Segmentation-1}
+library(ggplot2)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+social<-read.csv("C:/Users/DENG/Desktop/UTA Doc/Summer/predictive modeling/PART2 EXERCISE/STA380/data/social_marketing.csv", stringsAsFactors = FALSE)
+Y = social[,(2:37)]
+X = scale(Y, center=TRUE, scale=TRUE)
+```
+In order to begin the clustering analysis, we first needed to read in the data and scale it as seen above. Scaling the data in a case like this is important and is standard practice because so that numbers can be compared to means with standard deviations.
+
+Printing the head after scaling gets us decimal point numbers because they are in terms of standard deviations. Scaling the data is done by subtracting the mean and dividing by the standard deviation.
+
+```{r Market Segmentation-2, echo=FALSE}
+mu = attr(X,"scaled:center") #the averages, the x bars for each covariates
+sigma = attr(X,"scaled:scale")
+```
+
+Here, we extract the centers and scales from the rescaled data (which are named attributes)
+
+```{r Market Segmentation-3, echo=FALSE}
+set.seed(1)
+clust1 = kmeans(X, 6, nstart=25)
+```
+
+The seed was set so that when another data scientist opens this file, they are able to reproduce the same clusters as were used in this analysis.
+
+Subsequently, the kmeans cluster was run. We ran a total of 6 clusters and set n as 25, so that 25 samples of clusters were created and the clusters with the lowest within cluster sum of squares were kept.
+
+```{r Market Segmentation-4, echo=FALSE}
+clust1$center
+```
+
+Above, we see what is in cluster 1. Each number is the coordinate for each feature for that centroid (cluster) on a z score scale.
+
+```{r Market Segmentation-5, echo=FALSE}
+clust1$center[1,]*sigma + mu 
+clust1$center[2,]*sigma + mu 
+clust1$center[3,]*sigma + mu
+clust1$center[4,]*sigma + mu
+clust1$center[5,]*sigma + mu
+clust1$center[6,]*sigma + mu 
+```
+
+by multiplying by the standard deviation and adding the mean, we see something that is more useful and can now compare the numbers for each category between each cluster, and try to identify what goes in these clusters. 
+
+Multiplying by sigma and adding mu is a way of unscaling the data and recentering it. The result we get from running this line is the unscaled version. this is much easier to interpret it so we don't have to interpret it based on z scores or standard deviations.
+
+We defined clusters as being groups of correlated interests based on what these users tweeted about. The clusters are as follows:
+
+Cluster 1 had higher numbers for personal fitness and  health nutrition. Our group concluded that these might be people who are really into working out and eating healthy.
+Cluster 2 had high numbers for online gaming, sports playing, and college and university. We concluded that these are likely college aged gamers.
+Cluster 3 had high numbers for politics, computers, news. Politics was the highest here by far so we concluded that this cluster is likely made up of politically engaged people.
+Cluster 4 had high numbers for food, religion, parenting, school, sports, fandom, and crafts. This is a widely distributed amount of interests, but we concluded that since parenting had a particularly high number, the cluster could be made up of parents. Most of the topics are things parents might talk about (school, and sports).
+Cluster 5 had high numbers for fashion, cooking, photo sharing, beauty. Our group thought this could be fashion bloggers or lifestyle influencers.
+Cluster 6 was made up of all negative numbers except for spam and adult. As a result, we concluded that these are spam twitter accounts with explicit adult content.
+
+```{r Market Segmentation-5A, include=FALSE}
+which(clust1$cluster == 1)
+which(clust1$cluster == 3)
+which(clust1$cluster == 4)
+which(clust1$cluster == 5)
+```
+
+Above is another look at which categories are in which clusters.
+
+```{r Market Segmentation-6, echo=FALSE}
+set.seed(1)
+clust2 = kmeanspp(X, k=6, nstart=25)
+```
+
+Here, we apply the k means++.
+
+```{r Market Segmentation-7, echo=FALSE}
+clust2$center[1,]*sigma + mu
+clust2$center[2,]*sigma + mu
+clust2$center[4,]*sigma + mu
+```
+
+Here, we initialize the k means and see the values per cluster per topic.
+
+```{r Market Segmentation-8, include=FALSE}
+which(clust2$cluster == 1)
+which(clust2$cluster == 2)
+which(clust2$cluster == 3)
+```
+
+```{r Market Segmentation-9, echo=FALSE}
+clust1$withinss 
+clust2$withinss
+```
+
+These are vectors of the within cluster sum of square for each cluster. This is done in preparation for the next step, which is finding the sum. The values from clust1 (the clustering done without k means) are 89277.35, 27194.42, 29625.16, 16467.02, 29195.01, and 22721.60. The values from clust2 (the clustering done with k means++) are 89277.35, 29625.16, 27194.42, 16467.02, 29195.01, and 22721.60.
+
+```{r Market Segmentation-10, echo=FALSE}
+sum(clust1$withinss)
+sum(clust2$withinss)
+```
+
+This gives us the within sample sum of squares. The result is 214480.6.
+
+```{r Market Segmentation-11, echo=FALSE}
+clust1$tot.withinss 
+clust2$tot.withinss
+```
+
+As an alternative, we used this method, which also gives us total sum of squares.Again, the value is 214480.6.
+
+```{r Market Segmentation-12, echo=FALSE}
+clust1$betweenss
+clust2$betweenss
+```
+
+This gives us the between sample sum of squares, which we expect to be high. The value is 69235.45.
+
+## Portfolio Modeling Report
+
+```{r portfoliomodeling1, include=FALSE}
+library(mosaic)
+library(quantmod)
+library(foreach)
+
+mystocks = c("VHT", "IBB", "IYH")
+loadSymbols(mystocks)
+```
+
+Our group chose the biotech industry and imported three stocks. 
+
+```{r portfoliomodeling2, include=FALSE}
+
+VHTa = adjustOHLC(VHT)
+IBBa = adjustOHLC(IBB)
+IYHa = adjustOHLC(IYH)
+```
+
+Stocks are sometimes split up from EFTs in order to pay dividends, which affects the price of the stock, so we had to adjust for this. 
+
+```{r portfoliomodeling3, echo=FALSE}
+plot(ClCl(VHTa))
+```
+```{r portfoliomodeling4, echo=FALSE}
+plot(ClCl(IBBa))
+```
+```{r portfoliomodeling5, echo=FALSE}
+plot(ClCl(IYHa))
+```
+
+The fluctuation in each stock over time is visible in the plots.
+
+```{r portfoliomodeling6, include=FALSE}
+set.seed(1)
+all_returns = cbind(ClCl(VHTa),ClCl(IBBa),ClCl(IYHa))
+head(all_returns)
+all_returns = as.matrix(na.omit(all_returns))
+N = nrow(all_returns)
+```
+
+The seed was set in order to create reproducible results. THen the changes were bound into a single matrix.
+
+```{r portfoliomodeling7, echo=FALSE}
+pairs(all_returns)
+plot(all_returns[,1], type='l')
+```
+
+We can see that there is a strong correlation. These returns can be viewed as draws from the joint distribution
+
+```{r portfoliomodeling8, echo=FALSE}
+plot(all_returns[,3], type='l')
+```
+
+Above, we have plotted the market returns over time.
+
+```{r portfoliomodeling9, echo=FALSE}
+plot(all_returns[1:(N-1),3], all_returns[2:N,3])
+```
+
+In this plot, we wanted to see whether the returns from one day are correlated with the returns from the subsequent day. This does not appear to be true as there is no visible correlation.
+
+```{r portfoliomodeling10, echo=FALSE}
+acf(all_returns[,3])
+```
+
+Our autocorrelation plot did not return anything.
+
+```{r portfoliomodeling11, echo=FALSE}
+set.seed(1)
+return.today = resample(all_returns, 1, orig.ids=FALSE)
+return.today
+```
+
+Above, we sampled a random return from the empirical joint distribution. This is a simulation of a random day and the returns from that day.
+
+```{r portfoliomodeling12, echo=FALSE}
+set.seed(1)
+# Update the value of your holdings: portfolio 1
+total_wealth = 100000
+my_weights = c(0.3,0.2,0.5)
+holdings = total_wealth*my_weights
+holdings_Portfolio1 = holdings*(1 + return.today)
+
+#portfolio 2
+my_weights = c(0.5,0.4,0.1)
+holdings = total_wealth*my_weights
+holdings_Portfolio2 = holdings*(1 + return.today)
+
+#portfolio 3
+my_weights = c(0.1,0.6,0.3)
+holdings = total_wealth*my_weights
+holdings_Portfolio3 = holdings*(1 + return.today)
+```
+
+Above, we set up each portfolio. The total wealth was set at $100000, and the weights of each stock varied per portfolio. Portfolio 1 had weights of 0.3,0.2, and 0.5. Portfolio 2 had weights of 0.5, 0.4, and 0.1. Potfolio 3 had weights of 0.1, 0.6, and 0.3. These weights correspond to VHT, IBB, and IYH respectively.
+
+```{r portfoliomodeling13, echo=FALSE}
+set.seed(1)
+# Compute your new total wealth: portfolio 1
+holdings_Portfolio1
+total_wealth1 = sum(holdings_Portfolio1)
+total_wealth1
+
+# Compute your new total wealth: portfolio 2
+holdings_Portfolio2
+total_wealth2 = sum(holdings_Portfolio2)
+total_wealth2
+
+# Compute your new total wealth: portfolio 3
+holdings_Portfolio3
+total_wealth3 = sum(holdings_Portfolio3)
+total_wealth3
+```
+
+The total wealth was then calculated per portfolio, taking into account the weights of the ETFs and the value of each respective ETF. The total wealth are 100100.2, 100110.7, and 100123.1 for portfolios 1, 2 and 3 respectively.
+
+```{r portfoliomodeling14, echo=FALSE}
+set.seed(1)
+## Portfolio 1
+total_wealth1 = 100000
+weights = c(0.3,0.2,0.5)
+holdings1 = weights * total_wealth1
+n_days = 20  
+wealthtracker1 = rep(0, n_days) 
+for(today in 1:n_days) {
+  return.today = resample(all_returns, 1, orig.ids=FALSE)  
+  holdings1 = holdings1 + holdings1*return.today
+  total_wealth1 = sum(holdings1)
+  wealthtracker1[today] = total_wealth1
+}
+total_wealth1
+plot(wealthtracker1, type='l')
+## end block
+
+#Portfolio 2
+total_wealth2 = 100000
+weights = c(0.5,0.4,0.1)
+holdings2 = weights * total_wealth2
+n_days = 20  
+wealthtracker2 = rep(0, n_days) 
+for(today in 1:n_days) {
+  return.today = resample(all_returns, 1, orig.ids=FALSE) 
+  holdings2 = holdings2 + holdings2*return.today
+  total_wealth2 = sum(holdings2)
+  wealthtracker2[today] = total_wealth2
+}
+total_wealth2
+plot(wealthtracker2, type='l')
+## end block
+
+#Portfolio 3
+total_wealth3 = 100000
+weights = c(0.1,0.6,0.3)
+holdings3 = weights * total_wealth3
+n_days = 20  
+wealthtracker3 = rep(0, n_days) 
+for(today in 1:n_days) {
+  return.today = resample(all_returns, 1, orig.ids=FALSE)  
+  holdings3 = holdings3 + holdings3*return.today
+  total_wealth3 = sum(holdings3)
+  wealthtracker3[today] = total_wealth3
+}
+total_wealth3
+plot(wealthtracker3, type='l')
+## end block
+```
+
+For each portfolio, we looped over two trading weeks and ran the code 5 times to account for variability in performance trajectory. each 'wealthtracker' tracks the total amount per day. Then the holdings are added with the returns from each day and the sum for each portfolio is the total wealth.
+
+```{r portfoliomodeling15, echo=FALSE}
+#Portfolio 1
+set.seed(1)
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.3,0.2,0.5)
+  holdings1 = weights * total_wealth
+  n_days = 20
+  wealthtracker1 = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings1 = holdings1 + holdings1*return.today
+    total_wealth = sum(holdings1)
+    wealthtracker1[today] = total_wealth
+  }
+  wealthtracker1
+}
+
+#Portfolio 1
+head(sim1)
+hist(sim1[,n_days], 25)
+
+#Portfolio 2
+initial_wealth = 100000
+sim2 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.5,0.4,0.1)
+  holdings2 = weights * total_wealth
+  n_days = 20
+  wealthtracker2 = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings2 = holdings2 + holdings2*return.today
+    total_wealth = sum(holdings2)
+    wealthtracker2[today] = total_wealth
+  }
+  wealthtracker2
+}
+
+#Portfolio 1
+head(sim2)
+hist(sim2[,n_days], 25)
+
+#Portfolio 3
+initial_wealth = 100000
+sim3 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.1,0.6,0.3)
+  holdings3 = weights * total_wealth
+  n_days = 20
+  wealthtracker3 = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings3 = holdings3 + holdings3*return.today
+    total_wealth = sum(holdings3)
+    wealthtracker3[today] = total_wealth
+  }
+  wealthtracker3
+}
+
+#Portfolio 1
+head(sim3)
+hist(sim3[,n_days], 25)
+```
+
+For each portfolio, we are simulating the trajectory of wealth over 20 days. This is done 5000 times for each portfolio to account for any variability in simulations. The 'wealthtrackers' tracks the wealth of each portfolio over this 20 business day period. In the histograms, each row is a simulated trajectory and each column is wealth data.
+
+```{r portfoliomodeling16, echo=FALSE}
+set.seed(1)
+# Profit/loss
+#Portfolio 1
+mean(sim1[,n_days])
+mean(sim1[,n_days] - initial_wealth)
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+# Profit/loss
+#Portfolio 2
+mean(sim2[,n_days])
+mean(sim2[,n_days] - initial_wealth)
+hist(sim2[,n_days]- initial_wealth, breaks=30)
+
+# Profit/loss
+#Portfolio 3
+mean(sim3[,n_days])
+mean(sim3[,n_days] - initial_wealth)
+hist(sim3[,n_days]- initial_wealth, breaks=30)
+```
+
+Here, the results of the simulations per portfolio are averaged in order to accounts for simulation variability. Then the initial wealth is subtracted in order to calculate the profit or loss of the portfolio. These results are plotted in histograms.
+
+```{r portfoliomodeling17, echo=FALSE}
+set.seed(1)
+# 5% value at risk:
+#Portfolio 1
+quantile(sim1[,n_days]- initial_wealth, prob=0.05)
+
+# 5% value at risk:
+#Portfolio 2
+quantile(sim2[,n_days]- initial_wealth, prob=0.05)
+
+# 5% value at risk:
+#Portfolio 3
+quantile(sim3[,n_days]- initial_wealth, prob=0.05)
+```
+
+The value at risk is the amount that a portfolio might lost at a given percentage in a normal day, given market conditions. Here, the 5% value at risk is calculted for each portfolio. The 4-week (20 trading day) value at risk of this first portfolio is -\7300.149. The 4-week (20 trading day) value at risk of this second portfolio is -\8001.347. The 4-week (20 trading day) value at risk of this third portfolio is -\8858.699. In this simulation, the first portfolio returns the lowest value at risk, but the third portfolio may return the most.
+
+## Association Rule Mining
+```{r 1a, include = FALSE}
+
+library(tidyverse)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+
+groceries_raw <- read.transactions("C:/Users/DENG/Desktop/UTA Doc/Summer/predictive modeling/PART2 EXERCISE/STA380/data/groceries.txt", sep=",")
+str(groceries_raw)
+
+
+```
+
+```{r 1b, echo=FALSE}
+
+summary(groceries_raw)
+
+```
+From our summary, we can see a few things about our dataset. We see that we have 9835 rows (baskets) and 169 columns. Our most frequent items are whole milk, with 2513 transactions, other vegetables, with 1903 transactions, and rolls/buns, with 1809 transactions. Our density is 0.02609146, which is the percentage of non-empty cells. The density shows that 43,364 items were purchased throughout all of the transactions in the data. Another thing we can observe is that the large majority of transactions only had one item. The transaction with the highest number of items had 32 items, and there was only one such transaction. It's interesting that more people opted to buy fewer amounts of items at a time. We also see that 50 percent of the transactions had between 2 and 6 items in them. 
+
+```{r 2, echo=FALSE}
+
+itemFrequencyPlot(groceries_raw,topN = 20)
+
+```
+Our frequency plot reflects the same things we see from the summary. 
+
+We then cast 'groceries' as a special arules "transactions" class. We did this so we can run the apriori algorithm, which is an algorithm for finding rules over a support threshold.
+```{r 3, include =FALSE}
+
+groceries = as(groceries_raw,'transactions')
+
+```
+
+```{r 4, echo=FALSE}
+
+grocRules = apriori(groceries, 
+                     parameter=list(support=.007, confidence=.25, minlen = 2))
+
+```
+
+
+```{r 5, echo=FALSE}
+
+inspect(grocRules[1:3])
+
+```
+
+Above we show the first 3 out of 9835 transactions as a sample of our data. 
+```{r 6, echo=FALSE}
+inspect(subset(grocRules[1:3], subset=lift > 3)) #root vegetables and herbs had the highest life of 3.956477
+inspect(subset(grocRules, subset=confidence > 0.5)) #butter and yogurt have the highest confidence
+inspect(subset(grocRules, subset=lift > 2 & confidence > 0.6)) #butter and yogurt have highest lift and confidence
+```
+
+We then inspected subsets with varying levels of lift and confidence. We see that when we set it to a lift higher than 3, herbs and root vegetables have the highest lift at 3.95, meaning that if someone buys herbs, they are 3.95 times more likely to buy root vegetables. With a confidence above 0.5, butter and yogurt have the highest confidence at 0.64, which means that if someone buys butter, they are 64% likely to also buy yogurt. When we set the lift to above 2 and the confidence to above 0.6, we see that butter and yogurt have the highest lift and confidence, with a lift of 2.50 and a confidence of 0.64. 
+
+```{r 7, echo=FALSE}
+
+plot(grocRules) #low support (around 0.01 - 0.03) and below 0.5 confidence have the highest lift (deep red)
+
+```
+
+When we plot our 'grocRules,' we see that low support, as well as confidence below 0.5, tend to have the highest lift because the points are a deeper red. We might be seeing this trend because the higher the lift is, the more sure we are that those items being bought together is not a coincidence, and so this would apply to a smaller amount of transactions. 
+
+
+```{r 8, echo=FALSE}
+
+plot(grocRules, method='two-key plot')
+
+```
+
+With all points, we see that as the confidence gets higher, the number of points decreases. We again see that order 2, or the blue plot points, have the highest support aka it applies to the largest amount of cases. 
+
+
+```{r 9, echo=FALSE}
+
+inspect(subset(grocRules, support > 0.05))
+inspect(subset(grocRules, confidence > 0.6))
+
+```
+
+We are interested in looking at the transactions of the blue dots with high support, so we set the support to be above 0.05. All four of the resulting transactions have whole milk in them. This is also the case when we set the confidence to be above 0.6. These findings are consistent with whole milk being the most frequently bought item in our data set. 
+
+```{r 10, echo=FALSE}
+
+sub1 = subset(grocRules, subset=confidence > 0.01 & support > 0.005)
+summary(sub1)
+plot(sub1, method='graph')
+
+```
+
+```{r 11, echo=FALSE}
+
+plot(head(sub1, 100, by='lift'), method='graph')
+
+```
+
+```{r 12, echo=FALSE}
+
+saveAsGraph(head(grocRules, n = 1000, by = "lift"), file = "grocRules1.graphml")
+
+```
+
+
+![Gephy Graph - Based on degree](C:/Users/DENG\Desktop\UTA Doc\Summer\predictive modeling\PART2 EXERCISE/grocRulesGraphImage.png)
+Our Gephy graph reinforces what we observed earlier. We ranked it by degree, so we see that whole milk and other vegetables especially have the largest amount of connections. 
+
+## Author Attribution
+```{r Author Attribution1, include=FALSE}
+library(tm) 
+library(tidyverse)
+library(slam)
+library(proxy)
+library(randomForest)
+
+readerPlain = function(fname){
+  readPlain(elem=list(content=readLines(fname)), 
+            id=fname, language='en') }
+
+#train set
+train = Sys.glob('C:/Users/DENG/Desktop/UTA Doc/Summer/predictive modeling/PART2 EXERCISE/STA380/data/ReutersC50/C50train/*/*.txt')
+c50train = lapply(train, readerPlain) #
+
+# Clean up the file names
+# no doubt the stringr library would be nicer here.
+# this is just what I hacked together
+#he's taking out the .../data/etc so now each txt file has the author name and then the txt name
+mynames = train %>%
+  { strsplit(., '/', fixed=TRUE) } %>%
+  { lapply(., tail, n=2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+# Rename the articles
+mynames
+names(c50train) = mynames
+mynames
+
+## once you have documents in a vector, you 
+## create a text mining 'corpus' with: 
+documents_raw = Corpus(VectorSource(c50train))
+documents_raw
+```
+
+We read in the c50train data as our training set and used the readerPlain function to translate all of the articles into English. Then we cleaned the file names to remove the file path and only include the author concatenated with the text name. We then placed all the documents in a vector and created a text mining corpus, which contained 2,500 documents.
+
+```{r Author Attribution2, echo=FALSE}
+## Some pre-processing/tokenization steps.
+## tm_map just maps some function to every document in the corpus
+#handful of tokenization steps we can use. warning is fine
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+ #still 2500 docs
+
+## Remove stopwords.  Always be careful with this: one person's trash is another one's treasure.
+# let's just use the "basic English" stop words
+my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+my_documents
+
+```
+For pre-processing and tokenization, we made everything lowercase and removed numbers, punctuation, and white space. This will help ensure the model focuses on true word values. After this, we still have 2,500 documents. We also removed the basic English stopwords to exclude filler words such as 'because, 'and', etc. This doesn't change the number of documents.
+
+```{r Author Attribution3, echo=FALSE}
+## create a doc-term-matrix from the corpus, bag of words for every document in vector form
+DTM_c50train = DocumentTermMatrix(my_documents)
+DTM_c50train # some basic summary statistics
+
+```
+We created a doc-term-matrix from our document corpus, which shows that our 2,500 documents have 32,570 terms.
+
+```{r Author Attribution4, echo=FALSE}
+## Finally, let's drop those terms that only occur in one or two documents
+## This is a common step: the noise of the "long tail" (rare terms)
+## can be huge, and there is nothing to learn if a term occurred once.
+## Below removes those terms that have count 0 in >95% of docs.  
+## Probably a bit stringent here... but only 50 docs!
+DTM_c50train = removeSparseTerms(DTM_c50train, 0.99)
+DTM_c50train
+```
+We removed the terms that were not present in over 99% of documents to remove insignificant words that rarely occur. This decreases our number of terms down to 3,393 terms from 32,570 terms.
+
+```{r Author Attribution5, include=FALSE}
+
+# construct TF IDF weights -- might be useful if we wanted to use these. TD IDF = how important a word is
+# as features in a predictive model
+tfidf_c50train = weightTfIdf(DTM_c50train)
+tfidf_c50train
+
+
+# Dimensionality reduction
+####
+
+# Now PCA on term frequencies
+X = as.matrix(tfidf_c50train)
+summary(colSums(X))
+scrub_cols = which(colSums(X) == 0) #take out words that have 0 tdidf weight
+X = X[,-scrub_cols]
+
+
+pca_c50train = prcomp(X, scale=TRUE) #take x matrix and feed into principal components matrix
+
+# ours looks like 844 summaries or so gets us ~80% of the variation in 3,377 features
+summary(pca_c50train) 
+```
+We constructed TF IDF weights on the original training set to remove words with zero TF IDF weight since they have zero importance. This decreased the terms to 3,377. Then we fed the cleaned training set into the principal components matrix and found our PC summaries. It looks like about 844 summaries provide us around 80% of the variation in the 3,377 features.
+
+```{r Author Attribution6, include=FALSE}
+
+#make test set 
+test = Sys.glob('C:/Users/DENG/Desktop/UTA Doc/Summer/predictive modeling/PART2 EXERCISE/STA380/data/ReutersC50/C50test/*/*.txt')
+c50test = lapply(test, readerPlain)
+
+#Creating training dataset
+#articles=NULL
+#authors=NULL
+#for (name in train)
+#{ 
+#  author=substring(name,first=50)
+#  article=Sys.glob(name)
+#  articles=append(articles,article)
+#  authors=append(authors,rep(author,length(article)))
+#}
+#C50train = lapply(articles, readerPlain) 
+
+
+# Clean up the file names
+# no doubt the stringr library would be nicer here.
+# this is just what I hacked together
+#he's taking out the .../data/etc so now each txt file has the author name and then the txt name
+mynamest = test %>%
+  { strsplit(., '/', fixed=TRUE) } %>%
+  { lapply(., tail, n=2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+# Rename the articles
+mynamest
+names(c50train) = mynamest
+
+## once you have documents in a vector, you 
+## create a text mining 'corpus' with: 
+documents_rawt = Corpus(VectorSource(c50test))
+documents_rawt
+
+## Some pre-processing/tokenization steps.
+## tm_map just maps some function to every document in the corpus
+#handful of tokenization steps we can use. warning is fine
+my_documentst = documents_rawt %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+my_documentst #still 589 docs
+
+## Remove stopwords.  Always be careful with this: one person's trash is another one's treasure.
+# let's just use the "basic English" stop words
+my_documentst = tm_map(my_documentst, content_transformer(removeWords), stopwords("en"))
+my_documentst #still 589
+
+## create a doc-term-matrix from the corpus, bag of words for every document in vector form
+DTM_c50test = DocumentTermMatrix(my_documentst)
+DTM_c50test # some basic summary statistics, shows 589 docs and 14,729 terms
+
+## You can inspect its entries...
+inspect(DTM_c50test[5:25,5:25])
+
+## ...find words with greater than a min count... DOUBLE CHECK IN LECTURE
+findFreqTerms(DTM_c50test, 50) #the words that occur more than 50 times
+
+## ...or find words whose count correlates with a specified word.
+# the top entries here look like they go with "genetic"
+findAssocs(DTM_c50test, "genetic", .5) #words that are more than 50% correlated with the word 'genetic', he knew to ask this bc he understood the document
+findAssocs(DTM_c50test, "police", .4)
+findAssocs(DTM_c50test, "investment", .3)
+
+## Finally, let's drop those terms that only occur in one or two documents
+## This is a common step: the noise of the "long tail" (rare terms)
+## can be huge, and there is nothing to learn if a term occurred once.
+## Below removes those terms that have count 0 in >95% of docs.  
+## Probably a bit stringent here... but only 50 docs!
+DTM_c50test = removeSparseTerms(DTM_c50test, 0.99)
+DTM_c50test # now 3,801 terms
+
+
+# construct TF IDF weights -- might be useful if we wanted to use these. TD IDF = how important a word is
+# as features in a predictive model
+tfidf_c50test = weightTfIdf(DTM_c50test)
+tfidf_c50test
+
+
+# Dimensionality reduction READ ABOUT THIS
+####
+
+# Now PCA on term frequencies
+Xt = as.matrix(tfidf_c50test)
+summary(colSums(Xt))
+scrub_cols = which(colSums(Xt) == 0) #take out words that have 0 tdidf weight
+Xt = Xt[,-scrub_cols] #now 589 docs and 3,785 terms
+
+
+pca_c50test = prcomp(Xt, scale=TRUE) #take x matrix and feed into principal components matrix
+summary(pca_c50test) 
+```
+
+
+For the test set, we read in the c50test data and performed the same data cleaning process to make the two data sets comparable.
+
+Unfortunately, we were unable to set a column of authors as the response variable for the classification models. We tried to use a random forest model and were planning on doing KNN as well. For the random forest, we decided to use the data up to the 844th summary since it provided 80% of the variation in features.
+
+Random Forest Classification
+train_pcs = data.frame(pca_c50train$x[,1:844])
+authors_train = as.factor(train_authors) #make authors categorical
+set.seed(1)
+rf.docs = randomForest(authors_train~., data = train_pcs, mtry=6, importance = TRUE)
+
+
